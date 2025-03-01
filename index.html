@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DB Manager</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loginForm" class="container">
+        <h2>🔑 Database Connection</h2>
+        <form id="connectionForm">
+            <div class="form-group">
+                <input type="text" id="host" placeholder="Host" required>
+            </div>
+            <div class="form-group">
+                <input type="number" id="port" placeholder="Port (5432)" required>
+            </div>
+            <div class="form-group">
+                <input type="text" id="user" placeholder="Username" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" placeholder="Password" required>
+            </div>
+            <div class="form-group">
+                <input type="text" id="database" placeholder="Database" required>
+            </div>
+            <div class="remember">
+                <input type="checkbox" id="rememberMe">
+                <label for="rememberMe">Remember me</label>
+            </div>
+            <button type="submit" id="connectBtn">🚀 Connect</button>
+        </form>
+    </div>
+
+    <div id="mainInterface" class="container hidden">
+        <div class="header">
+            <h2>📊 Database Manager</h2>
+            <button id="logoutBtn">🔒 Logout</button>
+        </div>
+
+        <div class="content">
+            <div class="main-area">
+                <div id="chatLog" class="chat-log"></div>
+            </div>
+
+            <div class="side-panel">
+                <button class="operation-btn" data-operation="insert">✨ Insert</button>
+                <button class="operation-btn" data-operation="edit">✏️ Edit</button>
+                <button class="operation-btn" data-operation="delete">🗑️ Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
