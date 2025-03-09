@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <div id="loginForm" class="container">
         <h2>🔑 Database Connection</h2>
         <form id="connectionForm">
@@ -15,7 +14,7 @@
                 <input type="text" id="host" placeholder="Host" required>
             </div>
             <div class="form-group">
-                <input type="number" id="port" placeholder="Port (5432)" required>
+                <input type="number" id="port" placeholder="Port" required>
             </div>
             <div class="form-group">
                 <input type="text" id="user" placeholder="Username" required>
@@ -25,10 +24,6 @@
             </div>
             <div class="form-group">
                 <input type="text" id="database" placeholder="Database" required>
-            </div>
-            <div class="remember">
-                <input type="checkbox" id="rememberMe">
-                <label for="rememberMe">Remember me</label>
             </div>
             <button type="submit" id="connectBtn">🚀 Connect</button>
         </form>
@@ -41,15 +36,48 @@
         </div>
 
         <div class="content">
-            <div class="main-area">
-                <div id="chatLog" class="chat-log"></div>
-            </div>
-
             <div class="side-panel">
                 <button class="operation-btn" data-operation="insert">✨ Insert</button>
                 <button class="operation-btn" data-operation="edit">✏️ Edit</button>
                 <button class="operation-btn" data-operation="delete">🗑️ Delete</button>
+                <button class="operation-btn" data-operation="showAll">📋 Show All</button>
             </div>
+
+            <div class="main-area">
+                <div id="operationForms">
+                    <!-- Insert Form -->
+                    <form id="insertForm" class="operation-form hidden">
+                        <h3>✨ Insert Record</h3>
+                        <input type="text" id="fullName" placeholder="Full Name" required>
+                        <input type="tel" id="phone" placeholder="Phone Number" required>
+                        <textarea id="note" placeholder="Note"></textarea>
+                        <button type="submit">Insert</button>
+                    </form>
+
+                    <!-- Edit Form -->
+                    <form id="editForm" class="operation-form hidden">
+                        <h3>✏️ Edit Record</h3>
+                        <input type="tel" id="editPhone" placeholder="Phone Number" required>
+                        <input type="text" id="editFullName" placeholder="New Full Name">
+                        <textarea id="editNote" placeholder="New Note"></textarea>
+                        <button type="submit">Update</button>
+                    </form>
+
+                    <!-- Delete Form -->
+                    <form id="deleteForm" class="operation-form hidden">
+                        <h3>🗑️ Delete Record</h3>
+                        <input type="tel" id="deletePhone" placeholder="Phone Number" required>
+                        <button type="submit">Delete</button>
+                    </form>
+
+                    <!-- Show All Records -->
+                    <div id="showAll" class="operation-form hidden">
+                        <h3>📋 All Records</h3>
+                        <div id="recordsList" class="records-list"></div>
+                    </div>
+                </div>
+            </div>
+            <div id="chatLog" class="chat-log"></div>
         </div>
     </div>
 

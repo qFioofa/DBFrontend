@@ -2,55 +2,92 @@ const UIManager = {
     elements: {
         loginForm: () => document.getElementById('loginForm'),
         mainInterface: () => document.getElementById('mainInterface'),
-        chatLog: () => document.getElementById('chatLog'),
         connectionForm: () => document.getElementById('connectionForm'),
-        logoutBtn: () => document.getElementById('logoutBtn')
+        logoutBtn: () => document.getElementById('logoutBtn'),
+        operationForms: {
+            insert: () => document.getElementById('insertForm'),
+            edit: () => document.getElementById('editForm'),
+            delete: () => document.getElementById('deleteForm'),
+            showAll: () => document.getElementById('showAll')
+        },
+        recordsList: () => document.getElementById('recordsList'),
+        chatLog: () => document.getElementById('chatLog')
     },
 
-    toggleAuthUI: (isConnected) => {
-        UIManager.elements.loginForm().classList.toggle('hidden', isConnected);
-        UIManager.elements.mainInterface().classList.toggle('hidden', !isConnected);
+    toggleAuthUI(isConnected) {
+        this.elements.loginForm().classList.toggle('hidden', isConnected);
+        this.elements.mainInterface().classList.toggle('hidden', !isConnected);
     },
 
-    addLogMessage: (message, isError = false) => {
+    showOperationForm(operation) {
+        // Hide all forms
+        Object.values(this.elements.operationForms).forEach(form =>
+            form().classList.add('hidden')
+        );
+        // Show selected form
+        if(this.elements.operationForms[operation]) {
+            this.elements.operationForms[operation]().classList.remove('hidden');
+        }
+    },
+
+    addLogMessage(message, isError = false) {
         const logEntry = document.createElement('div');
         logEntry.className = `log-entry ${isError ? 'error' : 'info'}`;
         logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
-        UIManager.elements.chatLog().appendChild(logEntry);
-        UIManager.elements.chatLog().scrollTop = UIManager.elements.chatLog().scrollHeight;
+        this.elements.chatLog().appendChild(logEntry);
+        this.elements.chatLog().scrollTop = this.elements.chatLog().scrollHeight;
     },
 
-    getConnectionConfig: () => ({
-        host: document.getElementById('host').value,
-        port: parseInt(document.getElementById('port').value),
-        user: document.getElementById('user').value,
-        password: document.getElementById('password').value,
-        database: document.getElementById('database').value,
-        rememberMe: document.getElementById('rememberMe').checked
-    }),
+    getFormData(formType) {
+        const form = document.getElementById(`${formType}Form`);
+        return Object.fromEntries(new FormData(form).entries());
+    },
 
-    handleConnectionError: (error) => {
-        UIManager.addLogMessage(`Connection failed: ${error.message}`, true);
+    displayRecords(records) {
+        this.elements.recordsList().innerHTML = records.map(record => `
+            <div class="record-card">
+                <strong>${record.fullName}</strong>
+                <div>📞 ${record.phone}</div>
+                ${record.note ? `<div>📝 ${record.note}</div>` : ''}
+            </div>
+        `).join('');
     }
 };
 
+// Database Simulation
 const createDatabaseConnection = () => {
     let connection = null;
+    let records = [];
 
     return {
         connect: async (config) => {
             UIManager.addLogMessage('Connecting to database...');
-
-            // Simulate connection
             await new Promise(resolve => setTimeout(resolve, 1000));
 
             connection = {
                 status: 'connected',
                 config,
-                query: async (sql) => {
-                    // Simulate query execution
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return { rows: [], count: 0 };
+                // Simulated database operations
+                insert: async (data) => {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    records.push(data);
+                    return { success: true, data };
+                },
+                update: async (phone, newData) => {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    const index = records.findIndex(r => r.phone === phone);
+                    if (index === -1) return { success: false };
+                    records[index] = { ...records[index], ...newData };
+                    return { success: true, data: records[index] };
+                },
+                delete: async (phone) => {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    records = records.filter(r => r.phone !== phone);
+                    return { success: true, data: { phone } };
+                },
+                getAll: async () => {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    return { success: true, data: [...records] };
                 }
             };
 
@@ -63,74 +100,109 @@ const createDatabaseConnection = () => {
             UIManager.addLogMessage('Disconnected');
         },
 
+        getConnection: () => connection,
         getStatus: () => connection?.status || 'disconnected'
     };
 };
 
-const createOperationManager = (dbConnection) => {
-    const executeOperation = async (operation, data) => {
-        try {
-            UIManager.addLogMessage(`Executing ${operation} operation...`);
-            // Simulate database operation
-            await new Promise(resolve => setTimeout(resolve, 300));
-            return { success: true, data };
-        } catch (error) {
-            UIManager.handleConnectionError(error);
-            return { success: false };
-        }
-    };
-
-    return {
-        insert: (data) => executeOperation('insert', data),
-        edit: (data) => executeOperation('edit', data),
-        delete: (data) => executeOperation('delete', data)
-    };
-};
-
+// Application Controller
 const setupAppController = () => {
     const dbConnection = createDatabaseConnection();
-    const operationManager = createOperationManager(dbConnection);
+    let currentConnection = null;
 
     const handleConnect = async (event) => {
         event.preventDefault();
-        const config = UIManager.getConnectionConfig();
+        const config = {
+            host: document.getElementById('host').value,
+            port: parseInt(document.getElementById('port').value),
+            user: document.getElementById('user').value,
+            password: document.getElementById('password').value,
+            database: document.getElementById('database').value,
+            rememberMe: true
+        };
 
         try {
-            await dbConnection.connect(config);
+            currentConnection = await dbConnection.connect(config);
             UIManager.toggleAuthUI(true);
+            UIManager.showOperationForm('showAll');
+            await handleDatabaseOperation('showAll')();
 
             if (config.rememberMe) {
                 localStorage.setItem('dbConfig', JSON.stringify(config));
             }
         } catch (error) {
-            UIManager.handleConnectionError(error);
+            UIManager.addLogMessage(`Connection failed: ${error.message}`, true);
         }
     };
 
     const handleLogout = () => {
         dbConnection.disconnect();
+        currentConnection = null;
         UIManager.toggleAuthUI(false);
         localStorage.removeItem('dbConfig');
     };
 
-    const handleOperation = (operation) => {
-        return async () => {
-            const data = {}; // Get data from UI
-            const result = await operationManager[operation](data);
-            if (result.success) {
-                UIManager.addLogMessage(`${operation} operation completed`);
+    const handleDatabaseOperation = (operation) => async (e) => {
+        if(e) e.preventDefault();
+        if (!currentConnection) return;
+
+        try {
+            let result;
+            let formData = {};
+
+            if(operation !== 'showAll') {
+                formData = UIManager.getFormData(operation);
             }
-        };
+
+            switch(operation) {
+                case 'insert':
+                    result = await currentConnection.insert(formData);
+                    break;
+                case 'edit':
+                    result = await currentConnection.update(formData.phone, formData);
+                    break;
+                case 'delete':
+                    result = await currentConnection.delete(formData.phone);
+                    break;
+                case 'showAll':
+                    const response = await currentConnection.getAll();
+                    UIManager.displayRecords(response.data);
+                    return;
+            }
+
+            // Construct formatted log message
+            let logContent = `${operation.charAt(0).toUpperCase() + operation.slice(1)}`;
+
+            UIManager.addLogMessage(logContent);
+
+            const updated = await currentConnection.getAll();
+            UIManager.displayRecords(updated.data);
+        } catch (error) {
+            UIManager.addLogMessage(`Error: ${error.message}`, true);
+        }
     };
 
+
     const initializeEventListeners = () => {
-        // Form submissions
+        // Auth events
         UIManager.elements.connectionForm().addEventListener('submit', handleConnect);
         UIManager.elements.logoutBtn().addEventListener('click', handleLogout);
 
-        // Database operations
+        // Operation buttons
         document.querySelectorAll('.operation-btn').forEach(button => {
-            button.addEventListener('click', handleOperation(button.dataset.operation));
+            button.addEventListener('click', () => {
+                const operation = button.dataset.operation;
+                UIManager.showOperationForm(operation);
+                if(operation === 'showAll') handleDatabaseOperation('showAll')();
+            });
+        });
+
+        // Form submissions
+        ['insert', 'edit', 'delete'].forEach(operation => {
+            UIManager.elements.operationForms[operation]().addEventListener(
+                'submit',
+                handleDatabaseOperation(operation)
+            );
         });
     };
 
@@ -142,7 +214,6 @@ const setupAppController = () => {
             document.getElementById('port').value = config.port;
             document.getElementById('user').value = config.user;
             document.getElementById('database').value = config.database;
-            document.getElementById('rememberMe').checked = true;
         }
     };
 
@@ -152,5 +223,5 @@ const setupAppController = () => {
     UIManager.toggleAuthUI(false);
 };
 
-// Initialize application
+// Bootstrap application
 document.addEventListener('DOMContentLoaded', setupAppController);
