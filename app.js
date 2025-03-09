@@ -1,124 +1,156 @@
-class DatabaseConnection {
-    constructor() {
-        this.connectionStatus = 'disconnected';
+const UIManager = {
+    elements: {
+        loginForm: () => document.getElementById('loginForm'),
+        mainInterface: () => document.getElementById('mainInterface'),
+        chatLog: () => document.getElementById('chatLog'),
+        connectionForm: () => document.getElementById('connectionForm'),
+        logoutBtn: () => document.getElementById('logoutBtn')
+    },
+
+    toggleAuthUI: (isConnected) => {
+        UIManager.elements.loginForm().classList.toggle('hidden', isConnected);
+        UIManager.elements.mainInterface().classList.toggle('hidden', !isConnected);
+    },
+
+    addLogMessage: (message, isError = false) => {
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry ${isError ? 'error' : 'info'}`;
+        logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+        UIManager.elements.chatLog().appendChild(logEntry);
+        UIManager.elements.chatLog().scrollTop = UIManager.elements.chatLog().scrollHeight;
+    },
+
+    getConnectionConfig: () => ({
+        host: document.getElementById('host').value,
+        port: parseInt(document.getElementById('port').value),
+        user: document.getElementById('user').value,
+        password: document.getElementById('password').value,
+        database: document.getElementById('database').value,
+        rememberMe: document.getElementById('rememberMe').checked
+    }),
+
+    handleConnectionError: (error) => {
+        UIManager.addLogMessage(`Connection failed: ${error.message}`, true);
     }
+};
 
-    async connect(config) {
-        // Пропускаем реальное подключение к БД
-        this.connectionStatus = 'connecting';
-        UIManager.addLogMessage('Connecting to database...');
+const createDatabaseConnection = () => {
+    let connection = null;
 
-        // Имитация успешного подключения
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        this.connectionStatus = 'connected';
-        UIManager.addLogMessage('[DEMO] Connection established successfully!');
+    return {
+        connect: async (config) => {
+            UIManager.addLogMessage('Connecting to database...');
 
-        return { success: true };
-    }
+            // Simulate connection
+            await new Promise(resolve => setTimeout(resolve, 1000));
 
-    getStatus() {
-        return this.connectionStatus;
-    }
-}
+            connection = {
+                status: 'connected',
+                config,
+                query: async (sql) => {
+                    // Simulate query execution
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    return { rows: [], count: 0 };
+                }
+            };
 
-class OperationManager {
-    constructor() {
-        this.operations = {
-            insert: this.handleInsert.bind(this),
-            edit: this.handleEdit.bind(this),
-            delete: this.handleDelete.bind(this)
-        };
-    }
+            UIManager.addLogMessage('Connected successfully!');
+            return connection;
+        },
 
-    async executeOperation(operation, data) {
-        console.log(`Operation: ${operation}`, data);
-        UIManager.addLogMessage(`[DEMO] ${operation} operation executed`);
-        return { success: true };
-    }
+        disconnect: () => {
+            connection = null;
+            UIManager.addLogMessage('Disconnected');
+        },
 
-    handleInsert(data) {
-        // Здесь будет реальная логика для INSERT
-        return this.executeOperation('insert', data);
-    }
+        getStatus: () => connection?.status || 'disconnected'
+    };
+};
 
-    handleEdit(data) {
-        // Здесь будет реальная логика для EDIT
-        return this.executeOperation('edit', data);
-    }
+const createOperationManager = (dbConnection) => {
+    const executeOperation = async (operation, data) => {
+        try {
+            UIManager.addLogMessage(`Executing ${operation} operation...`);
+            // Simulate database operation
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return { success: true, data };
+        } catch (error) {
+            UIManager.handleConnectionError(error);
+            return { success: false };
+        }
+    };
 
-    handleDelete(data) {
-        // Здесь будет реальная логика для DELETE
-        return this.executeOperation('delete', data);
-    }
-}
+    return {
+        insert: (data) => executeOperation('insert', data),
+        edit: (data) => executeOperation('edit', data),
+        delete: (data) => executeOperation('delete', data)
+    };
+};
 
-class UIManager {
-    // ... предыдущие методы остаются без изменений ...
+const setupAppController = () => {
+    const dbConnection = createDatabaseConnection();
+    const operationManager = createOperationManager(dbConnection);
 
-    static showModal(operation) {
-        const modal = document.getElementById('recordModal');
-        modal.classList.remove('hidden');
-        document.getElementById('modalTitle').textContent =
-            `${operation.charAt(0).toUpperCase() + operation.slice(1)} Record`;
-    }
-
-    static closeModal() {
-        document.getElementById('recordModal').classList.add('hidden');
-        document.getElementById('recordForm').reset();
-    }
-
-    static getFormData() {
-        return {
-            fullName: document.getElementById('fullName').value,
-            phoneNumber: document.getElementById('phoneNumber').value,
-            note: document.getElementById('note').value
-        };
-    }
-}
-
-class AppController {
-    constructor() {
-        this.dbConnection = new DatabaseConnection();
-        this.operationManager = new OperationManager();
-        this.initializeEventListeners();
-        this.checkSavedCredentials();
-        this.initializeChat();
-    }
-
-    initializeEventListeners() {
-        // ... предыдущие обработчики ...
-
-        document.querySelectorAll('.operation-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const operation = e.target.dataset.operation;
-                UIManager.showModal(operation);
-            });
-        });
-
-        document.getElementById('recordForm').addEventListener('submit', (e) => this.handleFormSubmit(e));
-        document.querySelector('.close').addEventListener('click', () => UIManager.closeModal());
-    }
-
-    async handleFormSubmit(e) {
-        e.preventDefault();
-        const operation = document.getElementById('modalTitle').textContent
-            .toLowerCase().replace(' record', '');
-        const formData = UIManager.getFormData();
+    const handleConnect = async (event) => {
+        event.preventDefault();
+        const config = UIManager.getConnectionConfig();
 
         try {
-            await this.operationManager[operation](formData);
-            UIManager.addLogMessage(`[DEMO] ${operation} operation successful`);
-            console.log('Demo data:', formData);
+            await dbConnection.connect(config);
+            UIManager.toggleAuthUI(true);
+
+            if (config.rememberMe) {
+                localStorage.setItem('dbConfig', JSON.stringify(config));
+            }
         } catch (error) {
-            UIManager.handleError(error.message);
+            UIManager.handleConnectionError(error);
         }
+    };
 
-        UIManager.closeModal();
-    }
-}
+    const handleLogout = () => {
+        dbConnection.disconnect();
+        UIManager.toggleAuthUI(false);
+        localStorage.removeItem('dbConfig');
+    };
 
-// Инициализация приложения
-document.addEventListener('DOMContentLoaded', () => {
-    new AppController();
-    initStars();
-});
+    const handleOperation = (operation) => {
+        return async () => {
+            const data = {}; // Get data from UI
+            const result = await operationManager[operation](data);
+            if (result.success) {
+                UIManager.addLogMessage(`${operation} operation completed`);
+            }
+        };
+    };
+
+    const initializeEventListeners = () => {
+        // Form submissions
+        UIManager.elements.connectionForm().addEventListener('submit', handleConnect);
+        UIManager.elements.logoutBtn().addEventListener('click', handleLogout);
+
+        // Database operations
+        document.querySelectorAll('.operation-btn').forEach(button => {
+            button.addEventListener('click', handleOperation(button.dataset.operation));
+        });
+    };
+
+    const checkSavedCredentials = () => {
+        const savedConfig = localStorage.getItem('dbConfig');
+        if (savedConfig) {
+            const config = JSON.parse(savedConfig);
+            document.getElementById('host').value = config.host;
+            document.getElementById('port').value = config.port;
+            document.getElementById('user').value = config.user;
+            document.getElementById('database').value = config.database;
+            document.getElementById('rememberMe').checked = true;
+        }
+    };
+
+    // Initialization
+    checkSavedCredentials();
+    initializeEventListeners();
+    UIManager.toggleAuthUI(false);
+};
+
+// Initialize application
+document.addEventListener('DOMContentLoaded', setupAppController);
